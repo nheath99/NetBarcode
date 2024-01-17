@@ -441,48 +441,21 @@ namespace NetBarcode
 
         private void InitializeType()
         {
-            IBarcode barcode;
-
-            switch (_type)
+            IBarcode barcode = _type switch
             {
-                case Type.Code128:
-                    barcode = new Code128(_data);
-                    break;
-                case Type.Code128A:
-                    barcode = new Code128(_data, Code128.Code128Type.A);
-                    break;
-                case Type.Code128B:
-                    barcode = new Code128(_data, Code128.Code128Type.B);
-                    break;
-                case Type.Code128C:
-                    barcode = new Code128(_data, Code128.Code128Type.C);
-                    break;
-                case Type.Code11:
-                    barcode = new Code11(_data);
-                    break;
-                case Type.Code39:
-                    barcode = new Code39(_data);
-                    break;
-                case Type.Code39E:
-                    barcode = new Code39(_data, true);
-                    break;
-                case Type.Code93:
-                    barcode = new Code93(_data);
-                    break;
-                case Type.EAN8:
-                    barcode = new EAN8(_data);
-                    break;
-                case Type.EAN13:
-                    barcode = new EAN13(_data);
-                    break;
-                case Type.Codabar:
-                    barcode = new Codabar(_data);
-                    break;
-                default:
-                    barcode = new Code128(_data);
-                    break;
-            }
-
+                Type.Code128 => new Code128(_data),
+                Type.Code128A => new Code128(_data, Code128.Code128Type.A),
+                Type.Code128B => new Code128(_data, Code128.Code128Type.B),
+                Type.Code128C => new Code128(_data, Code128.Code128Type.C),
+                Type.Code11 => new Code11(_data),
+                Type.Code39 => new Code39(_data),
+                Type.Code39E => new Code39(_data, true),
+                Type.Code93 => new Code93(_data),
+                Type.EAN8 => new EAN8(_data),
+                Type.EAN13 => new EAN13(_data),
+                Type.Codabar => new Codabar(_data),
+                _ => new Code128(_data),
+            };
             _encodedData = barcode.GetEncoding();
         }
 
@@ -493,8 +466,8 @@ namespace NetBarcode
         /// <param name="imageFormat">The image format. Defaults to Jpeg.</param>
         public void SaveImageFile(string path, ImageFormat imageFormat = ImageFormat.Jpeg)
         {
-            using (var image = GenerateImage())
-                image.Save(path, getImageEncoder(imageFormat));
+            using var image = GenerateImage();
+            image.Save(path, GetImageEncoder(imageFormat));
         }
 
         /// <summary>
@@ -504,8 +477,8 @@ namespace NetBarcode
         /// <param name="imageFormat">The image format. Defaults to Jpeg.</param>
         public async Task SaveImageFileAsync(string path, ImageFormat imageFormat = ImageFormat.Jpeg)
         {
-            using (var image = GenerateImage())
-                await image.SaveAsync(path, getImageEncoder(imageFormat));
+            using var image = GenerateImage();
+            await image.SaveAsync(path, GetImageEncoder(imageFormat));
         }
 
         /// <summary>
@@ -513,12 +486,10 @@ namespace NetBarcode
         /// </summary>
         public string GetBase64Image()
         {
-            using (var image = GenerateImage())
-            using (var memoryStream = new MemoryStream())
-            {
-                image.Save(memoryStream, getImageEncoder(ImageFormat.Png));
-                return Convert.ToBase64String(memoryStream.ToArray());
-            }
+            using var image = GenerateImage();
+            using var memoryStream = new MemoryStream();
+            image.Save(memoryStream, GetImageEncoder(ImageFormat.Png));
+            return Convert.ToBase64String(memoryStream.ToArray());
         }
 
         /// <summary>
@@ -526,12 +497,10 @@ namespace NetBarcode
         /// </summary>
         public byte[] GetByteArray()
         {
-            using (var image = GenerateImage())
-            using (var memoryStream = new MemoryStream())
-            {
-                image.Save(memoryStream, getImageEncoder(ImageFormat.Png));
-                return memoryStream.ToArray();
-            }
+            using var image = GenerateImage();
+            using var memoryStream = new MemoryStream();
+            image.Save(memoryStream, GetImageEncoder(ImageFormat.Png));
+            return memoryStream.ToArray();
         }
 
         /// <summary>
@@ -541,15 +510,13 @@ namespace NetBarcode
         /// <returns></returns>
         public byte[] GetByteArray(ImageFormat imageFormat)
         {
-            using (var image = GenerateImage())
-            using (var memoryStream = new MemoryStream())
-            {
-                image.Save(memoryStream, getImageEncoder(imageFormat));
-                return memoryStream.ToArray();
-            }
+            using var image = GenerateImage();
+            using var memoryStream = new MemoryStream();
+            image.Save(memoryStream, GetImageEncoder(imageFormat));
+            return memoryStream.ToArray();
         }
 
-        private IImageEncoder getImageEncoder(ImageFormat imageFormat)
+        private static IImageEncoder GetImageEncoder(ImageFormat imageFormat)
         {
             if (imageFormat == ImageFormat.Bmp)
             {
@@ -622,15 +589,16 @@ namespace NetBarcode
 
             float labelHeight = 0F, labelWidth = 0F;
             TextOptions labelTextOptions = null;
+            RichTextOptions labelRichTextOptions = null;
 
             if (_showLabel)
             {
-                labelTextOptions = new TextOptions(GetEffeciveFont())
+                labelRichTextOptions = new RichTextOptions(GetEffeciveFont())
                 {
                     Dpi = 200,
                 };
 
-                var labelSize = TextMeasurer.Measure(_data, labelTextOptions);
+                var labelSize = TextMeasurer.MeasureSize(_data, labelRichTextOptions);
                 labelHeight = labelSize.Height;
                 labelWidth = labelSize.Width;
             }
@@ -639,21 +607,13 @@ namespace NetBarcode
             var shiftAdjustment = 0;
             var iBarWidthModifier = 1;
 
-            switch (_alignmentPosition)
+            shiftAdjustment = _alignmentPosition switch
             {
-                case AlignmentPosition.Center:
-                    shiftAdjustment = (_width % _encodedData.Length) / 2;
-                    break;
-                case AlignmentPosition.Left:
-                    shiftAdjustment = 0;
-                    break;
-                case AlignmentPosition.Right:
-                    shiftAdjustment = (_width % _encodedData.Length);
-                    break;
-                default:
-                    shiftAdjustment = (_width % _encodedData.Length) / 2;
-                    break;
-            }
+                AlignmentPosition.Center => (_width % _encodedData.Length) / 2,
+                AlignmentPosition.Left => 0,
+                AlignmentPosition.Right => (_width % _encodedData.Length),
+                _ => (_width % _encodedData.Length) / 2,
+            };
 
             if (iBarWidth <= 0)
                 throw new Exception(
@@ -670,7 +630,7 @@ namespace NetBarcode
                 imageContext.BackgroundColor(_backgroundColor);
 
                 //lines are fBarWidth wide so draw the appropriate color line vertically
-                var pen = new Pen(_foregroundColor, iBarWidth / iBarWidthModifier);
+                var pen = Pens.Solid(_foregroundColor, iBarWidth / iBarWidthModifier);
                 var drawingOptions = new DrawingOptions
                 {
                     GraphicsOptions = new GraphicsOptions
@@ -684,7 +644,7 @@ namespace NetBarcode
                 {
                     if (_encodedData[pos] == '1')
                     {
-                        imageContext.DrawLines(drawingOptions, pen,
+                        imageContext.DrawLine(drawingOptions, pen,
                             new PointF(pos * iBarWidth + shiftAdjustment + halfBarWidth, 0),
                             new PointF(pos * iBarWidth + shiftAdjustment + halfBarWidth, _height - labelHeight)
                         );
@@ -705,25 +665,25 @@ namespace NetBarcode
                     case LabelPosition.BottomCenter:
                         labelY = image.Height - ((int)labelHeight);
                         labelX = _width / 2;
-                        labelTextOptions.HorizontalAlignment = HorizontalAlignment.Center;
+                        labelRichTextOptions.HorizontalAlignment = HorizontalAlignment.Center;
                         break;
                     case LabelPosition.TopLeft:
                     case LabelPosition.BottomLeft:
                         labelY = image.Height - ((int)labelHeight);
                         labelX = 0;
-                        labelTextOptions.HorizontalAlignment = HorizontalAlignment.Left;
+                        labelRichTextOptions.HorizontalAlignment = HorizontalAlignment.Left;
                         break;
                     case LabelPosition.TopRight:
                     case LabelPosition.BottomRight:
                         labelY = image.Height - ((int)labelHeight);
                         labelX = _width - (int)labelWidth;
-                        labelTextOptions.HorizontalAlignment = HorizontalAlignment.Left;
+                        labelRichTextOptions.HorizontalAlignment = HorizontalAlignment.Left;
                         break;
                 }
 
-                labelTextOptions.Origin = new Point(labelX, labelY);
+                labelRichTextOptions.Origin = new Point(labelX, labelY);
 
-                image.Mutate(x => x.DrawText(labelTextOptions, _data, _foregroundColor));
+                image.Mutate(x => x.DrawText(labelRichTextOptions, _data, _foregroundColor));
             }
 
             return image;
@@ -737,12 +697,12 @@ namespace NetBarcode
             if (_labelFont != null)
                 return _labelFont;
 
-            var defaultFont = SystemFonts.Collection.Families.FirstOrDefault();
+            FontFamily? defaultFont = SystemFonts.Collection.Families.FirstOrDefault();
 
             if (defaultFont == null)
                 throw new Exception("Label font not specified and no installed fonts found.");
 
-            return _labelFont = SystemFonts.CreateFont(defaultFont.Name, 10, FontStyle.Bold);
+            return _labelFont = SystemFonts.CreateFont(defaultFont.Value.Name, 10, FontStyle.Bold);
         }
     }
 }
